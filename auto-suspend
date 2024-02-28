@@ -1,0 +1,310 @@
+#!/bin/bash
+#
+#   SPDX-License-Identifier: GPL-3.0-or-later
+#
+#   auto-suspend: A simple but handy system monitor
+#   Copyright (C) 2024 loh.tar@googlemail.com
+#
+#   This auto-suspend is based on
+#   https://bbs.archlinux.org/viewtopic.php?pid=1225757#p1225757
+#   https://wiki.ubuntuusers.de/Archiv/Skripte/AutoSuspend/
+#
+
+# NOTE Intern variables start with lower case letters while config file
+# variables start with an upper case letter
+declare -r myVersion="0.8" # Feb 2024
+# shellcheck disable=SC2155 # Hm, guess is safe
+declare -r me=$(basename "$0")
+# Other default settings see below 'Main'
+
+# BEGIN Help
+
+case "$1" in
+	"help"|"-?"|"-h"|"--help")
+	cat <<- _EOF_
+	Usage:
+	    $me [COMMAND [ARG]]
+
+	COMMANDs are:
+	    on [ID]             Enable auto suspend by 'rm \$OffDir/ID'
+	    off [ID]            Disable auto suspend by 'touch \$OffDir/ID'
+	    daemon              Start in daemon mode
+	    clerk               Start in clerk mode
+	    info                Show some config and status information
+	    help,-?,-h,--help   You read it now
+
+	Hints:
+	    Without any command we start in the configured RunMode, see 'info'
+	    When [ID] at on/off is not given, is 'general' as default used
+	    on/off don't run any checks, they do as said and exit
+	_EOF_
+	exit 0
+	;;
+esac
+
+# BEGIN Functions
+
+logit()
+{
+	if [[ "$LogLevel" == "verbose" ]] ; then
+		# FIXME When used as a systemd service, everything is logged twice, once
+		# by Logger itself and once by systemd (I guess). We could remove the -s
+		# option, but then the message only appears from the user running the
+		# process, and not as the process itself.
+		# Well, adding an autosuspend user may an option
+		# # # logger -p local0.notice -s -- "AUTO-SUSPEND: $*"
+		>&2 echo "$*"
+	fi
+}
+
+IsOnline()
+{
+	# shellcheck disable=SC2048 # We want the whitespace splitting here
+	for i in $Clients ; do
+		# echo "ping $i"
+		if ping -c1 "$i" > /dev/null 2>&1 ; then
+		  logit "CLIENT $i is still active, auto suspend terminated"
+		  return 0
+		fi
+	done
+
+	return 1
+}
+
+IsRunning()
+{
+	# shellcheck disable=SC2048 # We want the whitespace splitting here
+	for i in  $Processes ; do
+		# echo "IsRunning $i"
+		if [[ $( pgrep -c "$i" ) -gt 0 ]] ; then
+			logit "PROCESS $i still running, auto suspend terminated"
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+IsDaemonActive()
+{
+	# shellcheck disable=SC2048 # We want the whitespace splitting here
+	for i in  $Daemons ; do
+		# echo "IsDaemonActive $i"
+		if [[ $( pgrep -c "$i" ) -gt 1 ]] ; then
+			logit "DAEMON $i still active, auto suspend terminated"
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+IsSambaInUse()
+{
+	[[ -x /usr/bin/smbstatus ]] || return 1 # No samba installed
+
+	sambaCon=$( /usr/bin/smbstatus | grep -c "$SambaNetwork" )
+	if [[ $sambaCon  != "0" ]] ; then
+		logit "$sambaCon SAMBA connections, auto suspend terminated"
+		return 0
+	fi
+
+	return 1
+}
+
+IsUserActive()
+{
+	# No Suspend if there are any users logged in
+	usersAboard=$( who | wc -l )
+	if [[ $usersAboard -gt $IgnoreLoginCount ]] ; then
+		if [[ $IgnoreLoginCount -gt 0 ]] ; then
+			logit "$usersAboard (but $IgnoreLoginCount ignored) USERS still connected, auto suspend terminated";
+		else
+			logit "$usersAboard USERS still connected, auto suspend terminated";
+		fi
+		return 0
+	fi
+
+	return 1
+}
+
+# Here we have the main check function. You can easily disable some calls for
+# some reason (debug?) by simply commenting out a call to IsFooBar. But in
+# general there should be no reason to do this. Appropriate configuration
+# settings should suffice.
+IsBusy()
+{
+	IsSambaInUse && return 0
+	IsDaemonActive && return 0
+	IsRunning && return 0
+	IsUserActive && return 0
+	IsOnline && return 0
+
+	return 1
+}
+
+CheckOffDir()
+{
+	[[ -d "$OffDir" ]] || return 0 # No dir? we are done :-)
+
+	# Inspired by https://stackoverflow.com/a/17902999
+	mapfile -t offFiles < <(find "$OffDir" -type f)
+	# echo "contains offFiles: ${offFiles[*]} ${#offFiles} ${#offFiles[@]}"
+	return "${#offFiles[@]}"
+}
+
+CheckStatus()
+{
+	# Test if we still have a 'go'
+	if ! CheckOffDir ; then
+		LogLevel='verbose' logit "auto suspend is turned off by existent of ${#offFiles[@]} file(s) in $OffDir"
+		return 0
+	fi
+
+	# Alright, lets check if system can be suspended!
+	if IsBusy ; then
+		if [[ -f "$IdleFile" ]] ; then
+			rm -f "$IdleFile"
+			logit "system is busy, no longer marked as idle"
+		fi
+	else
+		# Only suspend now when the system has been idle on the previous check
+		if [[ -e "$IdleFile" ]] ; then
+			LogLevel='verbose' logit "AUTO SUSPEND HAS ENTERED"
+			rm -f "$IdleFile" # Ensure that we are fresh and not half-asleep after wake up
+			# Here is the beef!
+			$SuspendCommand
+		else
+			touch "$IdleFile"
+			logit "system MARKED AS IDLE for next check"
+		fi
+	fi
+}
+
+# BEGIN Main
+
+# Set-up some config requirements...
+configFile=${configFile:-"/etc/auto-suspend.conf"}
+# ...with default values that will force a proper config file
+AutoSuspend="off"
+RunMode="daemon"
+# Let sleep throw an error if not properly configured
+CheckInterval="not set"
+LogLevel="verbose"
+IgnoreLoginCount="0"
+# These places should always work
+OffDir="/tmp/auto-suspend_off"
+IdleFile="/tmp/auto-suspend_idle_marker"
+SuspendCommand="systemctl suspend"
+
+# ...and read the mandatory config file
+if [[ -f "$configFile" ]] ; then
+	# shellcheck source=./auto-suspend.conf
+	source "$configFile"
+else
+	LogLevel='verbose' logit "ERROR configuration file not found: $configFile"
+	exit 1
+fi
+
+# Look for commands
+cmd=${1:-"daemon"}
+onOffClient=${2:-"general"}
+case "$cmd" in
+	"on")
+	rm -f "$OffDir/$onOffClient"
+	LogLevel='verbose' logit "auto suspend ENABLED by user command, rm $OffDir/$onOffClient"
+	exit 0
+	;;
+
+	"off")
+	mkdir -p "$OffDir"
+	touch "$OffDir/$onOffClient"
+	LogLevel='verbose' logit "auto suspend DISABLED by user command, touch $OffDir/$onOffClient"
+	exit 0
+	;;
+
+	"daemon")
+	RunMode="daemon"
+	;;
+
+	"clerk")
+	# Hm, we could call here CheckStatus, but looks wrong to me ATM
+	RunMode="clerk"
+	;;
+
+	"info")
+	# My first approach was just to grep the config file
+	#    grep -Ev "^#|^$"  "$configFile" | sed -e 's/^/    /'
+	# but what if there is not everything properly noted? That's why we print explicit each variable
+	cat <<- _EOF_
+	This is $me (v$myVersion) - A simple but handy system monitor
+	Config File: $configFile"
+	Settings in use:
+	    AutoSuspend="$AutoSuspend"
+	    RunMode="$RunMode"
+	    CheckInterval="$CheckInterval"
+	    LogLevel="$LogLevel"
+	    IgnoreLoginCount="$IgnoreLoginCount"
+	    Processes="$Processes"
+	    Daemons="$Daemons"
+	    SambaNetwork="$SambaNetwork"
+	    Clients="$Clients"
+	    OffDir="$OffDir"
+	    IdleFile="$IdleFile"
+	    SuspendCommand="$SuspendCommand"
+	_EOF_
+
+	if CheckOffDir ; then
+		echo "OffDir is empty"
+	else
+		echo "OffDir contains:"
+		printf "    %s\n" "${offFiles[@]}"
+	fi
+	if [[ -f "$IdleFile" ]] ; then
+		echo "IdleFile exists!"
+	else
+		echo "IdleFile is not present"
+	fi
+	echo "Run checks, the ping part may take a while..."
+	IsSambaInUse || echo "No samba is in use"
+	IsDaemonActive || echo "No daemon is active"
+	IsRunning || echo "No process is running"
+	IsOnline || echo "No client is online"
+	IsUserActive || echo "No user active" # Well, will never happens ;-)
+	exit 0
+	;;
+
+	*)
+	LogLevel='verbose' logit "ERROR unknown command: $cmd"
+	exit 1
+	;;
+esac
+
+# Ensure there is not already one instance running
+if [[ $( pgrep -c "$me" ) -gt 1 ]] ; then
+	logit "$me already running"
+	exit 0
+fi
+
+# Are we allowed to go on?
+if [[ "$AutoSuspend" != "on" ]] ; then
+	LogLevel='verbose' logit "AutoSuspend is not turned 'on' in configuration file $configFile"
+	exit 0
+fi
+
+# We need to test for classic mode because we don't want add an extra delay until
+# the check run
+if [[ "$RunMode" == "clerk" ]] ; then
+	CheckStatus
+	exit
+fi
+
+logit "will check the system status every $CheckInterval"
+
+while true ; do
+	# We sleep before the check run because we don't want a too short time after boot
+	sleep "$CheckInterval" || exit 1
+	CheckStatus
+done
+
+exit 0
