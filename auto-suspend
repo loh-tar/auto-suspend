@@ -195,7 +195,7 @@ IgnoreLoginCount="0"
 # These places should always work
 OffDir="/tmp/auto-suspend_off"
 IdleFile="/tmp/auto-suspend_idle_marker"
-SuspendCommand="systemctl suspend"
+SuspendCommand="echo bad configuration: no SuspendCommand set"
 
 # ...and read the mandatory config file
 if [[ -f "$configFile" ]] ; then
