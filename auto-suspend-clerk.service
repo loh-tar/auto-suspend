@@ -1,0 +1,7 @@
+[Unit]
+Description=Run auto-suspend
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/auto-suspend clerk
+RemainAfterExit=no

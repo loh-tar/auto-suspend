@@ -43,8 +43,8 @@ then you will know how to setup your box to accomplish an equivalent result.
 
 Installation
 ==============
-There is no install script or package provided, so you need to copy or create
-the files tedious by hand, e.g:
+There is no install script or package provided, so you need to copy the files
+tedious by hand, e.g:
 
     # install -Dm755 auto-suspend /usr/sbin/
     # install -Dm644 auto-suspend.conf /etc/
@@ -67,31 +67,12 @@ boot, e.g. by using the supplied systemd service file:
 Clerk Mode Setup
 ------------------
 In classic clerk mode you need to ensure that this script is called as often as
-you like, e.g. by cron or systemd-timer. There are no such files provided, but
-these detailed guidelines.
+you like, e.g. by cron or systemd-timer. There are two simple files provided,
+which will run auto-suspend every 5min. Modify the timer file or send a patch
+which will improve these files to accept a time-argument when enabled.
 
-systemd files could look like these:
-
-    $ cat /etc/systemd/system/auto-suspend-clerk.timer
-    [Unit]
-    Description=Run auto-suspend every foo minutes after boot
-
-    [Timer]
-    OnBootSec=15min
-    OnUnitActiveSec=5min
-
-    [Install]
-    WantedBy=timers.target
-
-
-    $ cat /etc/systemd/system/auto-suspend-clerk.service
-    [Unit]
-    Description=Run auto-suspend
-
-    [Service]
-    Type=oneshot
-    ExecStart=/user/sbin/auto-suspend clerk
-    RemainAfterExit=no
+    # install -Dm644 auto-suspend-clerk.service /etc/systemd/system/
+    # install -Dm644 auto-suspend-clerk.timer /etc/systemd/system/
 
 As usual you need to enable and start the services.
 
