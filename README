@@ -28,10 +28,17 @@ it can tell a little about itself:
 
 Requirements
 ==============
-Nothing really special that not every *nix box should have, but bash >= 4,  due
-to use of mapfile and no POSIX coding style. Although systemd is often mentioned
-in the following it's not a hard dependency. If you don't use systemd, then you
-will know how to setup your box to accomplish an equivalent result.
+Nothing really special that not every *nix box should have, but:
+- bash >= 4,  due to use of mapfile and no POSIX coding style.
+- ping
+- pgrep
+- grep
+- find
+- smbstatus (optionally)
+- systemd (optionally)
+
+Although systemd is optionally, it is used as default. If you don't use systemd,
+then you will know how to setup your box to accomplish an equivalent result.
 
 
 Installation
