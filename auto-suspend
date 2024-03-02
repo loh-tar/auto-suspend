@@ -173,7 +173,10 @@ CheckStatus()
 			LogLevel='verbose' logit "AUTO SUSPEND HAS ENTERED"
 			rm -f "$IdleFile" # Ensure that we are fresh and not half-asleep after wake up
 			# Here is the beef!
-			$SuspendCommand
+			if ! $SuspendCommand ; then
+				logit "ERROR bad SuspendCommand: $SuspendCommand"
+				exit 1
+			fi
 		else
 			touch "$IdleFile"
 			logit "system MARKED AS IDLE for next check"
