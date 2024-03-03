@@ -43,8 +43,17 @@ then you will know how to setup your box to accomplish an equivalent result.
 
 Installation
 ==============
-There is no install script or package provided, so you need to copy the files
-tedious by hand, e.g:
+Packages
+----------
+Arch users will find auto-suspend in AUR. This package will install all below
+mentioned files but requires manual setup as described below. So read careful
+and make your decisions which service file to enable or not.
+
+
+From Source
+-------------
+There is no install script provided, so you need to copy the files tedious
+by hand, e.g:
 
     # install -Dm755 auto-suspend /usr/bin/
     # install -Dm644 auto-suspend.conf /etc/
@@ -52,7 +61,8 @@ tedious by hand, e.g:
 So far so simple, but now you have to make the first hard decision, in which
 mode you want to run this nice script, "daemon" or "clerk". It may wise to read
 and modify the fresh installed config file NOW! There is some info stuff there
-that could help to continue here.
+that could help to continue here. This file must not only be edited to adapt it
+to your needs, but also to enable auto-suspend in the first place.
 
 
 Daemon Mode Setup
