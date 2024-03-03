@@ -141,8 +141,16 @@ Thanks To
 
 Release History
 =================
-Very first and last version was 0.8 - Feb, 2024
--------------------------------------------------
+Last version is 0.8.1 - Mar, 2024
+-----------------------------------
+- Add AUR hint
+- Change install path from sbin to bin
+- Improve documentation
+- Some minor changes, see commit log for details
+
+
+Very first version was 0.8 - Feb, 2024
+----------------------------------------
 - General review of the code, using more shell like techniques
 - Move more code into functions
 - Rename variables to CamelCase, change indention

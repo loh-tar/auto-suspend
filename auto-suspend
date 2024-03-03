@@ -12,7 +12,7 @@
 
 # NOTE Intern variables start with lower case letters while config file
 # variables start with an upper case letter
-declare -r myVersion="0.8" # Feb 2024
+declare -r myVersion="0.8.1" # Mar 2024
 # shellcheck disable=SC2155 # Hm, guess is safe
 declare -r me=$(basename "$0")
 # Other default settings see below 'Main'
