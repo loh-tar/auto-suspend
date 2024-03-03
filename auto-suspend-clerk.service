@@ -3,5 +3,5 @@ Description=Run auto-suspend
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/auto-suspend clerk
+ExecStart=/usr/bin/auto-suspend clerk
 RemainAfterExit=no

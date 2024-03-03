@@ -3,7 +3,7 @@ Description=Start auto-suspend in daemon mode
 
 [Service]
 Type=idle
-ExecStart=/usr/sbin/auto-suspend daemon
+ExecStart=/usr/bin/auto-suspend daemon
 
 [Install]
 WantedBy=multi-user.target

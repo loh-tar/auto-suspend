@@ -46,7 +46,7 @@ Installation
 There is no install script or package provided, so you need to copy the files
 tedious by hand, e.g:
 
-    # install -Dm755 auto-suspend /usr/sbin/
+    # install -Dm755 auto-suspend /usr/bin/
     # install -Dm644 auto-suspend.conf /etc/
 
 So far so simple, but now you have to make the first hard decision, in which
@@ -85,7 +85,7 @@ To check the success
 If you prefer to use cron instead of systemd-timer, you can proceed as follows
 to add a job that runs every 5 minutes.
 
-    $ echo "*/5 * * * * root /usr/sbin/auto-suspend" | sudo tee -a /etc/crontab
+    $ echo "*/5 * * * * root /usr/bin/auto-suspend" | sudo tee -a /etc/crontab
 
 
 Miscellaneous - Tips/Notes/Ideas
